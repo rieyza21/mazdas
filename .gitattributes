@@ -1,0 +1,5 @@
+*.ipynb text eol=lf
+*.json text eol=lf
+*.mp4 binary
+*.pt binary
+*.png binary

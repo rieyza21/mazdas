@@ -1,0 +1,105 @@
+{
+  "best_epoch": 43,
+  "selection_metric": "validation_macro_f1",
+  "video_preprocess": "aspect_border_v1",
+  "epochs_requested": 100,
+  "epochs_completed": 53,
+  "patience": 10,
+  "stopped_early": true,
+  "stop_reason": "patience_exhausted",
+  "backbone": "resnet18",
+  "pooling": "mean",
+  "tie_break": "earliest_epoch",
+  "mode": "fusion",
+  "classes": [
+    "eairh",
+    "eh",
+    "heh",
+    "neh",
+    "owh"
+  ],
+  "seed": 42,
+  "features": "artifacts/resnet18_restored_aspect_frames/features.pt",
+  "sample_counts": {
+    "train": 95,
+    "val": 26,
+    "test": 32
+  },
+  "validation_metrics": {
+    "loss": 0.5931514409872202,
+    "accuracy": 0.8461538553237915,
+    "macro_f1": 0.8647619485855103,
+    "precision": {
+      "eairh": 1.0,
+      "eh": 0.75,
+      "heh": 0.8333333134651184,
+      "neh": 0.8333333134651184,
+      "owh": 1.0
+    },
+    "f1": {
+      "eairh": 1.0,
+      "eh": 0.8571428656578064,
+      "heh": 0.8333333134651184,
+      "neh": 0.8333333134651184,
+      "owh": 0.800000011920929
+    },
+    "support": {
+      "eairh": 2,
+      "eh": 6,
+      "heh": 6,
+      "neh": 6,
+      "owh": 6
+    },
+    "recall": {
+      "eairh": 1.0,
+      "eh": 1.0,
+      "heh": 0.8333333134651184,
+      "neh": 0.8333333134651184,
+      "owh": 0.6666666865348816
+    },
+    "confusion_matrix": [
+      [
+        2,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        6,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        5,
+        1,
+        0
+      ],
+      [
+        0,
+        1,
+        0,
+        5,
+        0
+      ],
+      [
+        0,
+        1,
+        1,
+        0,
+        4
+      ]
+    ],
+    "class_order": [
+      "eairh",
+      "eh",
+      "heh",
+      "neh",
+      "owh"
+    ]
+  }
+}
