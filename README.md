@@ -113,6 +113,34 @@ artifact consistency, not performance on independent data.
 
 ## Running the Experiment
 
+Download the notebook, videos, and results **from the same repository revision**.
+Downloading just the notebook or combining it with a separate Drive dataset does
+not reproduce this experiment. A fresh clone is the simplest starting point:
+
+```sh
+git clone https://github.com/rieyza21/mazdas.git
+cd mazdas
+python verify_release.py
+```
+
+The verification command requires Python 3.11 or newer but no ML packages. It
+checks all 175 video paths and hashes without modifying data. For training use
+the Python 3.13 environment described below. When downloading a ZIP instead,
+fully extract it and use the resulting `mazdas-main` directory as `ROOT`.
+
+For Google Colab, clone into the runtime rather than combining notebook and
+dataset downloads from different locations:
+
+```python
+!git clone https://github.com/rieyza21/mazdas.git /content/mazdas
+!python /content/mazdas/verify_release.py
+```
+
+Then set `ROOT = Path('/content/mazdas')` in the notebook configuration cell.
+Cloning supplies data and results, not Python dependencies; Colab's runtime must
+still provide a compatible stack as noted below. Re-run configuration after
+changing `ROOT`, or restart the kernel and run cells in order.
+
 Keep `mazdas.ipynb`, the five category folders, and `results/` together. Open the
 notebook in Jupyter or Google Colab and set `ROOT` to that directory. For Colab,
 upload the complete package to Drive and mount it before setting `ROOT`.
@@ -190,6 +218,18 @@ across splits and is not a valid generalization benchmark or a direct comparison
 with the experiment above.
 
 ## Limitations
+
+### Dataset Integrity Errors
+
+If verification reports missing or unexpected videos, compare the listed paths
+with `ROOT`. Common causes are an incomplete download, nested extraction folders,
+incorrect folder names/case, or mixing files from different dataset revisions.
+If hashes differ, files were modified or incompletely downloaded. Use a fresh
+clone in a separate directory; do not delete personal files to repair a download.
+Do not regenerate the published manifest or remove the checks to suppress errors:
+that would allow different data to be paired with the recorded features and scores.
+
+### Research Limitations
 
 - Only 35 test clips are available; one error changes accuracy by 2.86 percentage
   points. Segmented clips are not independent infants or recordings.
