@@ -1,10 +1,9 @@
-import hashlib
 import json
 from pathlib import Path
 import tempfile
 import unittest
 
-from verify_release import verify_dataset
+from verify_release import verify_dataset, find_project_root
 
 
 class ReleaseChecks(unittest.TestCase):
@@ -17,17 +16,15 @@ class ReleaseChecks(unittest.TestCase):
         self.video.write_bytes(b'test fixture, not a real video')
         (self.root/'results').mkdir()
         relative = self.video.relative_to(self.root).as_posix()
-        self.hashes = {relative: hashlib.sha256(self.video.read_bytes()).hexdigest()}
-        (self.root/'results/dataset_sha256.json').write_text(json.dumps(self.hashes))
         (self.root/'results/current_dataset_manifest.json').write_text(
             json.dumps({'samples': [{'path': relative}]}))
 
     def test_matching_release(self):
-        hashes, _ = verify_dataset(self.root)
-        self.assertEqual(hashes, self.hashes)
+        manifest = verify_dataset(self.root)
+        self.assertEqual(len(manifest['samples']), 1)
 
     def test_wrong_root(self):
-        with self.assertRaisesRegex(ValueError, 'Wrong or incomplete ROOT'):
+        with self.assertRaisesRegex(ValueError, 'Incomplete project folder'):
             verify_dataset(self.root/'wrong')
 
     def test_missing_and_unexpected_paths(self):
@@ -38,15 +35,32 @@ class ReleaseChecks(unittest.TestCase):
         self.assertIn('example.mp4', str(caught.exception))
         self.assertIn('renamed.mp4', str(caught.exception))
 
-    def test_modified_content(self):
+    def test_content_is_not_hashed(self):
         self.video.write_bytes(b'changed')
-        with self.assertRaisesRegex(ValueError, 'Modified or incomplete'):
-            verify_dataset(self.root)
+        verify_dataset(self.root)
 
     def test_split_manifest_mismatch(self):
         (self.root/'results/current_dataset_manifest.json').write_text('{"samples": []}')
-        with self.assertRaisesRegex(ValueError, 'Split manifest'):
+        with self.assertRaisesRegex(ValueError, 'Dataset layout'):
             verify_dataset(self.root)
+
+    def test_root_discovery(self):
+        for name in ('eh', 'heh', 'neh', 'owh'):
+            (self.root/name).mkdir()
+        self.assertEqual(find_project_root(self.root), self.root.resolve())
+        self.assertEqual(find_project_root(self.video.parent), self.root.resolve())
+
+    def test_child_discovery_and_ambiguity(self):
+        for name in ('eh', 'heh', 'neh', 'owh'):
+            (self.root/name).mkdir()
+        with tempfile.TemporaryDirectory() as outer:
+            import shutil
+            child = Path(outer)/'mazdas-main'
+            shutil.copytree(self.root, child)
+            self.assertEqual(find_project_root(outer), child.resolve())
+            shutil.copytree(self.root, Path(outer)/'another-copy')
+            with self.assertRaisesRegex(ValueError, 'Multiple dataset folders'):
+                find_project_root(outer)
 
 
 if __name__ == '__main__':

@@ -124,9 +124,10 @@ python verify_release.py
 ```
 
 The verification command requires Python 3.11 or newer but no ML packages. It
-checks all 175 video paths and hashes without modifying data. For training use
+checks video paths against the split manifest without reading or hashing video
+contents. For training use
 the Python 3.13 environment described below. When downloading a ZIP instead,
-fully extract it and use the resulting `mazdas-main` directory as `ROOT`.
+fully extract it and open the notebook from the resulting `mazdas-main` directory.
 
 For Google Colab, clone into the runtime rather than combining notebook and
 dataset downloads from different locations:
@@ -136,14 +137,16 @@ dataset downloads from different locations:
 !python /content/mazdas/verify_release.py
 ```
 
-Then set `ROOT = Path('/content/mazdas')` in the notebook configuration cell.
+The notebook automatically discovers `/content/mazdas` from `/content`.
 Cloning supplies data and results, not Python dependencies; Colab's runtime must
-still provide a compatible stack as noted below. Re-run configuration after
-changing `ROOT`, or restart the kernel and run cells in order.
+still provide a compatible stack as noted below. Restart the kernel and run
+cells in order after replacing a dataset download.
 
 Keep `mazdas.ipynb`, the five category folders, and `results/` together. Open the
-notebook in Jupyter or Google Colab and set `ROOT` to that directory. For Colab,
-upload the complete package to Drive and mount it before setting `ROOT`.
+notebook from the extracted project folder. It searches the working directory,
+its parents, and immediate child folders for the dataset, with no machine-specific
+path to edit. If multiple copies exist, open it from the intended folder. It does
+not scan an entire disk or Google Drive; use the clone workflow above for Colab.
 
 Python 3.13 and CPU execution were used for the supplied experiments. Package
 versions are recorded in [environment.json](results/environment.json). A compatible
@@ -208,7 +211,7 @@ mazdas.ipynb                 Complete experimental workflow
 eairh/, eh/, heh/, neh/, owh/ Dataset folders and split manifests
 results/current_175/         Features, checkpoints, metrics, and plots
 results/audit/               Machine-readable verification evidence
-results/dataset_sha256.json  Media integrity checks
+verify_release.py           Optional dataset layout check (no hashing)
 AUDIT.md                    Detailed methodological review
 ```
 
@@ -224,10 +227,12 @@ with the experiment above.
 If verification reports missing or unexpected videos, compare the listed paths
 with `ROOT`. Common causes are an incomplete download, nested extraction folders,
 incorrect folder names/case, or mixing files from different dataset revisions.
-If hashes differ, files were modified or incompletely downloaded. Use a fresh
-clone in a separate directory; do not delete personal files to repair a download.
-Do not regenerate the published manifest or remove the checks to suppress errors:
-that would allow different data to be paired with the recorded features and scores.
+Use a fresh clone in a separate directory; do not delete personal files to repair
+a download. SHA-256 verification is not part of the workflow. Files replaced or
+modified under the same names are not detected, so changing video contents requires
+fresh feature preparation and training. Recorded metrics apply only to the supplied
+experiment, not to replacement media. Historical audit fingerprints are provenance
+records only and are not enforced by the notebook.
 
 ### Research Limitations
 
