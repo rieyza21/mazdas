@@ -123,6 +123,37 @@ PyTorch, TorchVision, TorchAudio, and Jupyter environment is required. Preproces
 and raw-video inference also require **FFmpeg and ffprobe** on PATH. ImageNet
 weights are downloaded on first use.
 
+### Installation (Windows / PowerShell)
+
+From the repository directory, use Python 3.13 to create a dedicated environment:
+
+```powershell
+py -3.13 -m venv .venv
+.venv\Scripts\python -m pip install --upgrade pip
+.venv\Scripts\python -m pip install -r requirements.txt
+.venv\Scripts\python -m pip check
+.venv\Scripts\python -m ipykernel install --user --name mazdas --display-name "Mazdas (Python 3.13)"
+ffmpeg -version
+ffprobe -version
+```
+
+[requirements.txt](requirements.txt) pins the recorded numerical libraries and
+notebook execution packages, including CPU PyTorch wheels. It does not install
+the FFmpeg executable or a notebook editor. Install FFmpeg separately and add its
+binary directory to PATH. Open the notebook in a Jupyter-compatible editor and
+select **Mazdas (Python 3.13)**. For a browser interface, optionally install and
+launch JupyterLab using this environment:
+
+```powershell
+.venv\Scripts\python -m pip install jupyterlab
+.venv\Scripts\python -m jupyterlab
+```
+
+These pins target the recorded Windows CPU setup. Other platforms, including
+Colab, may require a different compatible PyTorch stack and are not guaranteed
+to reproduce identical numbers. Direct dependencies are pinned; this is not a
+complete transitive dependency lock or a guarantee of bit-for-bit training results.
+
 By default, running all cells checks dataset integrity and displays saved results;
 it does not train or reevaluate the test set.
 
