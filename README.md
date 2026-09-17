@@ -195,8 +195,15 @@ it does not train or reevaluate the test set.
 | `RUN_TEST_EVALUATION` | `False` | Evaluate the validation-selected model |
 | `RUN_ROOT` | `ROOT / 'runs' / 'resnet18_reproduction'` | Output directory |
 
-For training, enable both `REBUILD_FEATURES` and `RUN_TRAINING` and choose an unused
-`RUN_ROOT`. Keep test evaluation disabled until all model decisions are fixed.
+For training on your videos, set `RUN_TRAINING = True` and choose an unused
+`RUN_ROOT`. Training automatically rebuilds features from the files actually in
+the five class folders. It does not verify fingerprints, release filenames, or
+published split assignments. Matching source-group annotations are retained;
+outdated annotations are ignored. Without applicable annotations, validation
+uses a seeded clip-level split of training files (or an explicit `data_val_video`
+folder). Check source overlap yourself: that fallback does not guarantee leakage-free
+splits. Each class needs training and test videos, and enough training clips to
+reserve validation. Keep test evaluation disabled until all model decisions are fixed.
 The workflow refuses to overwrite existing feature caches, training directories,
 or test results.
 
