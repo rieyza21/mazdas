@@ -1,173 +1,178 @@
-# Mazdas: Baby Cry Classification
+# Mazdas: Multimodal Baby Cry Classification
 
-A five-class PyTorch prototype using **intermediate fusion** of audio spectrograms
-and video-frame features. The complete workflow lives in **[mazdas.ipynb](mazdas.ipynb)**:
-data checks, preprocessing, training, validation, evaluation, plots, and prediction.
-No separate preparation or training scripts are required.
+Mazdas investigates five-class baby cry classification using **intermediate fusion
+of audio spectrograms and video features**. The experiment compares mean pooling
+with squeeze-and-excitation (SE) channel recalibration followed by temporal attention,
+using a frozen ResNet18 visual backbone and a trainable audio CNN.
 
-This is an academic experiment that predicts dataset labels, **not a medical tool
-or a validated translation of a baby's needs**.
+[mazdas.ipynb](mazdas.ipynb) contains the complete preparation, training, evaluation,
+and inference workflow. This research prototype predicts dataset labels; it is not
+a clinically validated interpretation of an infant's needs.
 
-## Package Layout
+## Dataset
+
+The dataset contains **175 audiovisual clips**, with 35 per category. Assigned
+meanings describe the annotation scheme, not medically verified causes.
+
+| Label | Assigned meaning | Training | Validation | Test |
+| --- | --- | ---: | ---: | ---: |
+| `eairh` | Lower abdominal discomfort | 22 | 6 | 7 |
+| `eh` | Needs burping | 22 | 6 | 7 |
+| `heh` | Discomfort | 22 | 6 | 7 |
+| `neh` | Hungry | 22 | 6 | 7 |
+| `owh` | Sleepy / tired | 22 | 6 | 7 |
+| **Total** | | **110** | **30** | **35** |
+
+Each category has two physical folders: `data_train_video/` contains 28 clips and
+`data_test_video/` contains 7. Six training-folder clips are reserved internally
+for validation. Class-level `split_manifest.json` files record the assignments.
+
+Footage is primarily drawn from Dunstan Baby Language instructional recordings,
+with an additional short-video source for `eairh`. The 35 `eairh` clips were
+segmented using audio energy and pauses, averaging approximately 1.57 seconds.
+Boundaries have not been individually verified by listening. Seven brief or
+low-energy candidates are flagged in [the clip review](eairh/review.html).
+
+### Overlap Screening
+
+Known duplicate and overlapping cuts are confined to training. An audio screen
+examined all **8,200 cross-split pairs**, including cross-class pairs, using normalized
+cross-correlation at 8 kHz. No absolute correlation above 0.85 was detected for
+alignments spanning at least 250 ms and 75% of the shorter clip.
+
+This does **not** establish source or infant independence. Shared recordings cross
+splits; shorter overlaps or transformed duplicates may evade detection. See
+[the audit](AUDIT.md) and [screening evidence](results/audit/verification.json).
+
+## Method
+
+**One clip is one paired sample.** Both modalities use the same first up to four
+seconds. Audio and its spectrogram form a single modality.
+
+- **Audio:** 16 kHz mono, 64-band log-mel spectrogram, FFT size 512, hop length 160,
+  per-clip standardization, and resizing to `(1, 64, 128)`. A small CNN produces
+  a 128-dimensional embedding.
+- **Video:** up to eight evenly spaced frames, conservative black-edge cropping,
+  and aspect-preserving resizing with padding. Frozen ImageNet-pretrained
+  ResNet18 produces 512 features per frame.
+- **Mean pooling:** average valid frame embeddings, excluding padding.
+- **SE-attention pooling:** use a masked temporal mean and a 512 -> 32 -> 512
+  ReLU/sigmoid network to recalibrate channels, followed by a learned temporal
+  attention scorer. Invalid logits are masked before softmax.
+- **Intermediate fusion:** project pooled video features to 128 dimensions,
+  concatenate with the audio embedding, apply dropout 0.4, and classify into
+  five categories.
+
+SE scales visual channels and temporal attention weights frames. Neither implements
+cross-modal attention or explicit motion estimation. The audio CNN, video projection,
+classifier, and attention modules are trainable; ResNet18 remains frozen.
+
+## Experimental Protocol
+
+| Parameter | Setting |
+| --- | --- |
+| Optimizer | AdamW |
+| Learning rate | 0.001 |
+| Weight decay | 0.01 |
+| Batch size | 16 |
+| Maximum epochs | 100 |
+| Early stopping | 10 epochs without validation macro F1 improvement |
+| Checkpoint selection | Highest validation macro F1; earliest epoch breaks ties |
+| Random seed | 42 |
+| Execution | CPU, four threads |
+
+Macro F1 averages the five per-class F1 scores equally. Model selection uses
+validation macro F1, not test performance. Results represent one split and one
+seed, rather than repeated trials or cross-validation.
+
+## Results
+
+| Pooling | Best epoch | Validation macro F1 | Test accuracy | Test macro F1 |
+| --- | ---: | ---: | ---: | ---: |
+| **Mean (validation-selected)** | 2 | **0.313** | 28.57% (10/35) | 0.2400 |
+| SE + temporal attention | 3 | 0.204 | **62.86% (22/35)** | **0.6187** |
+
+Mean pooling satisfies the validation-based selection criterion. SE-attention
+achieves higher test performance but lower validation performance. The reversal
+remains unexplained, and this experiment does not establish that either method
+generalizes better. Both test results are an **exploratory comparison**, not grounds
+for selecting attention after inspecting the test set.
+
+- [Mean validation metrics](results/current_175/mean/validation_metrics.json)
+- [Mean test metrics](results/current_175/mean/test_metrics.json)
+- [SE-attention validation metrics](results/current_175/attention/validation_metrics.json)
+- [SE-attention test metrics](results/current_175/attention/test_metrics.json)
+
+![Mean-pooling training curves](results/current_175/mean/training_curves.png)
+
+![SE-attention training curves](results/current_175/attention/training_curves.png)
+
+Validation and test metrics were reproduced from the supplied checkpoints.
+Ten raw-video preprocessing checks matched cached features. These checks verify
+artifact consistency, not performance on independent data.
+
+## Running the Experiment
+
+Keep `mazdas.ipynb`, the five category folders, and `results/` together. Open the
+notebook in Jupyter or Google Colab and set `ROOT` to that directory. For Colab,
+upload the complete package to Drive and mount it before setting `ROOT`.
+
+Python 3.13 and CPU execution were used for the supplied experiments. Package
+versions are recorded in [environment.json](results/environment.json). A compatible
+PyTorch, TorchVision, TorchAudio, and Jupyter environment is required. Preprocessing
+and raw-video inference also require **FFmpeg and ffprobe** on PATH. ImageNet
+weights are downloaded on first use.
+
+By default, running all cells checks dataset integrity and displays saved results;
+it does not train or reevaluate the test set.
+
+| Notebook setting | Default | Purpose |
+| --- | --- | --- |
+| `REBUILD_FEATURES` | `False` | Extract audio and video features |
+| `RUN_TRAINING` | `False` | Train both pooling variants |
+| `RUN_TEST_EVALUATION` | `False` | Evaluate the validation-selected model |
+| `RUN_ROOT` | `ROOT / 'runs' / 'resnet18_reproduction'` | Output directory |
+
+For training, enable both `REBUILD_FEATURES` and `RUN_TRAINING` and choose an unused
+`RUN_ROOT`. Keep test evaluation disabled until all model decisions are fixed.
+The workflow refuses to overwrite existing feature caches, training directories,
+or test results.
+
+The notebook's 22 cells have been executed successfully in saved-results mode.
+Full training through the notebook has not been independently repeated for this
+experiment. Device, library, and decoder differences may affect reproducibility.
+
+### Repository Contents
 
 ```text
-mazdas.ipynb
-eairh/
-eh/
-heh/
-neh/
-owh/
-results/
-  prepared/      # Cached features, exact split manifest, and input previews
-  mean/          # Mean-pooling checkpoint, history, metrics, and plots
-  attention/     # Attention checkpoint, history, validation metrics, and plots
-  dataset_sha256.json
-  environment.json
+mazdas.ipynb                 Complete experimental workflow
+eairh/, eh/, heh/, neh/, owh/ Dataset folders and split manifests
+results/current_175/         Features, checkpoints, metrics, and plots
+results/audit/               Machine-readable verification evidence
+results/dataset_sha256.json  Media integrity checks
+AUDIT.md                    Detailed methodological review
 ```
 
-Each class directory contains `data_train_video/` and `data_test_video/`.
-Validation is selected internally from training; no validation folder is needed.
-The five folders contain **153 videos**, split into **95 training, 26 validation,
-and 32 test samples** for the recorded experiment. The `eairh` manifest preserves
-the recurring-shot groups and training-only restrictions.
+`results/previous_dataset/` retains a separate 153-clip experiment for provenance.
+Its reported 81.25% accuracy was obtained with duplicate/subclip contamination
+across splits and is not a valid generalization benchmark or a direct comparison
+with the experiment above.
 
-| Label | Meaning used by the dataset |
-| --- | --- |
-| `eairh` | Lower abdominal discomfort |
-| `eh` | Needs burping |
-| `heh` | Discomfort |
-| `neh` | Hungry |
-| `owh` | Sleepy / tired |
+## Limitations
 
-## Open the Notebook
+- Only 35 test clips are available; one error changes accuracy by 2.86 percentage
+  points. Segmented clips are not independent infants or recordings.
+- Source and infant independence are unverified. Visual context, repeated scenes,
+  and class-specific duration differences may act as shortcuts.
+- Cry labels and automatic `eairh` boundaries need further human verification.
+- Both test outcomes have been inspected, and some source excerpts participated
+  in earlier development. Further tuning requires a fresh independent evaluation
+  set to support an unbiased final performance claim.
+- No external validation across new babies, phones, or environments has been
+  performed. The model is not suitable for medical or caregiving decisions.
 
-1. Clone or download the complete repository, including the videos and `results/`.
-2. Open `mazdas.ipynb` in Jupyter or Google Colab.
-3. Set `ROOT` in the first code cell to the directory containing the notebook and
-   all five dataset folders. Locally, `Path.cwd()` works when the kernel starts there.
-4. Run the cells in order.
+## Data Permissions
 
-For Colab, upload/unzip the complete package into Google Drive, mount Drive using
-Colab's Files panel, and set a path such as
-`ROOT = Path('/content/drive/MyDrive/mazdas')`.
-
-**By default, Run All reviews the supplied results without training or evaluating
-the test set again.** The notebook displays preprocessing previews, training curves,
-validation comparisons, and the recorded test metrics and confusion matrix.
-
-### Requirements
-
-The recorded runs used Python 3.13 on CPU. Exact PyTorch, TorchVision, TorchAudio,
-NumPy, and Pillow versions are recorded in `results/environment.json`. Use a
-compatible Jupyter/IPython kernel. The optional installation cell can install the
-recorded package versions; restart the kernel afterward. Results may differ on
-other environments or devices.
-
-Fresh preprocessing and prediction from a video require **FFmpeg and ffprobe on
-PATH**. Reviewing saved results does not require decoding videos. ImageNet ResNet18
-weights are downloaded on first use for fresh preparation or video prediction.
-
-## Reproduce Training
-
-The configuration cell exposes these switches:
-
-| Setting | Default | Purpose |
-| --- | --- | --- |
-| `REBUILD_FEATURES` | `False` | Recompute audio/video features from the videos |
-| `RUN_TRAINING` | `False` | Train both mean and attention pooling models |
-| `RUN_TEST_EVALUATION` | `False` | Evaluate only the validation-selected model |
-| `RUN_ROOT` | `ROOT / 'runs' / 'resnet18_reproduction'` | Separate location for new outputs |
-
-For full reproduction, set `REBUILD_FEATURES = True` and `RUN_TRAINING = True`,
-then run the notebook in order. Alternatively, leave feature rebuilding disabled
-to train using the supplied cache. Choose a fresh `RUN_ROOT` for each experiment;
-existing features and training directories are not silently overwritten.
-
-Keep test evaluation disabled while making model decisions. Only enable it after
-the experiment is fixed and a model has been selected by validation. The notebook
-refuses to overwrite an existing test result. Never use test results to choose
-checkpoints, tune settings, or select between models.
-
-The notebook's fresh preparation and both training runs were checked in the
-recorded environment and reproduced the saved validation metrics and best epochs
-exactly. This is a reproducibility check, not an independent evaluation.
-
-## Model and Preprocessing
-
-**One clip produces one paired sample**, using the same first up to four seconds
-in both modalities. Audio and its spectrogram are one modality, not two branches.
-
-- **Audio:** 16 kHz mono waveform, 64-band log-mel spectrogram, FFT size 512,
-  hop length 160, per-clip standardization, and resizing to `(1, 64, 128)`.
-  A small trainable CNN produces a 128-dimensional feature vector.
-- **Video:** up to eight evenly spaced frames, conservative shared black-edge
-  removal, aspect-preserving resizing, and neutral padding. Frozen ImageNet
-  **ResNet18** produces a 512-dimensional embedding per frame.
-- **Pooling:** either a masked mean or a small learned frame-attention scorer.
-  Padding is excluded. A linear projection produces 128 video features.
-- **Fusion:** concatenate audio and video features, apply dropout `0.4`, and
-  classify into five classes.
-
-Attention weights frames; it is not cross-modal attention or an explicit motion
-model. `best.pt` stores the trained fusion network, not the frozen ImageNet backbone.
-The notebook loads the appropriate backbone separately for raw-video prediction.
-
-Both runs use AdamW, learning rate `0.001`, weight decay `0.01`, batch size `16`,
-seed `42`, and four CPU threads. Training allows up to **100 epochs**, with early
-stopping after **10 epochs without a strictly higher validation macro F1**.
-The best checkpoint is retained; ties keep the earliest epoch.
-
-## Recorded Results
-
-### Validation Comparison
-
-| ResNet18 pooling | Best epoch | Stopped at | Accuracy | Macro F1 | Eairh recall |
-| --- | --- | --- | --- | --- | --- |
-| **Mean** | 43 | 53 | **84.62% (22/26)** | **0.86476** | 2/2 |
-| Attention | 40 | 50 | 80.77% (21/26) | 0.78029 | 1/2 |
-
-Mean pooling was selected using validation results, before test evaluation.
-
-### Selected Mean Model: Test
-
-**Accuracy: 81.25% (26/32). Macro F1: 0.75780.**
-
-| Class | Correct / total | Recall |
-| --- | --- | --- |
-| `eairh` | 1/4 | 25.0% |
-| `eh` | 7/7 | 100.0% |
-| `heh` | 7/7 | 100.0% |
-| `neh` | 6/7 | 85.7% |
-| `owh` | 5/7 | 71.4% |
-
-Macro F1 averages per-class F1 equally, so weak performance on a small class is
-not hidden by larger classes. Attention was not evaluated on test to pick a winner.
-
-- [Test metrics](results/mean/test_metrics.json)
-- [Mean training summary](results/mean/training_summary.json)
-- [Attention training summary](results/attention/training_summary.json)
-
-![Mean-pooling training curves](results/mean/training_curves.png)
-
-![Selected model test confusion matrix](results/mean/test_confusion.png)
-
-## Limitations and Data Permissions
-
-- The test set contains only 32 clips; one error changes accuracy by 3.125
-  percentage points. Eairh has only two validation examples and four test examples.
-- Eairh uses a provisional within-DVD recurring-shot split. Source and infant
-  independence across splits/classes are not established.
-- Two current eairh test clips were used for validation in earlier experiments.
-  This is not a historically untouched external benchmark.
-- The earlier 85.7% result used four classes and 28 test clips. It is not directly
-  comparable to this five-class experiment with a changed dataset and split.
-- The 81.25% overall accuracy does not resolve the weak 25% eairh test recall.
-  No external validation on new babies, phones, or environments has been done.
-- Source media permissions are not established by this repository. No license
-  to redistribute the infant footage is granted here. Confirm the required rights
-  and permissions before sharing, publishing, or deploying with this data.
-
-## References
-
-- [TorchVision ResNet18](https://docs.pytorch.org/vision/stable/models/generated/torchvision.models.resnet18.html)
-- [TorchAudio MelSpectrogram](https://docs.pytorch.org/audio/stable/generated/torchaudio.transforms.MelSpectrogram.html)
+This repository does not establish redistribution rights for the source footage
+or grant a license to share infant videos. Confirm the necessary permissions
+before publishing or redistributing the dataset.

@@ -1,0 +1,17 @@
+{
+  "status": "trained_and_evaluated_exploratory",
+  "total": 175,
+  "counts": {
+    "train": 110,
+    "val": 30,
+    "test": 35
+  },
+  "test_leakage_status": "no_detected_audio_overlap_under_documented_screen",
+  "test_isolation": "source_and_infant_independence_not_established",
+  "boundary_status": "eairh_automatic_candidates; other_classes_source_bouts",
+  "historical_results": "previous_dataset",
+  "historical_total": 153,
+  "validation_selected_model": "mean",
+  "current_results": "current_175",
+  "test_comparison": "both_models_previously_evaluated; attention_not_validation_selected"
+}
