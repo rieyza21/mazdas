@@ -6,7 +6,7 @@ from pathlib import Path
 def find_project_root(start=None):
     start = Path(start or Path.cwd()).expanduser().resolve()
     def valid(path):
-        return (path/'results/current_dataset_manifest.json').is_file() and all(
+        return all(
             (path/name).is_dir() for name in ('eairh', 'eh', 'heh', 'neh', 'owh'))
     for parent in (start, *start.parents):
         if valid(parent):

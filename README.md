@@ -185,31 +185,29 @@ Colab, may require a different compatible PyTorch stack and are not guaranteed
 to reproduce identical numbers. Direct dependencies are pinned; this is not a
 complete transitive dependency lock or a guarantee of bit-for-bit training results.
 
-By default, running all cells checks dataset integrity and displays saved results;
-it does not train or reevaluate the test set.
+**After installing dependencies, open the notebook and choose Run All. No code
+changes are required to start training.** Each run automatically:
 
-| Notebook setting | Default | Purpose |
-| --- | --- | --- |
-| `REBUILD_FEATURES` | `False` | Extract audio and video features |
-| `RUN_TRAINING` | `False` | Train both pooling variants |
-| `RUN_TEST_EVALUATION` | `False` | Evaluate the validation-selected model |
-| `RUN_ROOT` | `ROOT / 'runs' / 'resnet18_reproduction'` | Output directory |
+1. Locates the dataset and prepares fresh audio/video features.
+2. Trains mean and SE-attention models with validation-based early stopping.
+3. Selects the model with the highest validation macro F1 and evaluates it on test.
+4. Saves features, checkpoints, metrics and plots in a unique `runs/` directory.
 
-For training on your videos, set `RUN_TRAINING = True` and choose an unused
-`RUN_ROOT`. Training automatically rebuilds features from the files actually in
-the five class folders. It does not verify fingerprints, release filenames, or
+Use the included videos or put your own videos in the same five class folders,
+under `data_train_video/` and `data_test_video/`. Training uses those actual files.
+It does not verify fingerprints, release filenames, or
 published split assignments. Matching source-group annotations are retained;
 outdated annotations are ignored. Without applicable annotations, validation
 uses a seeded clip-level split of training files (or an explicit `data_val_video`
 folder). Check source overlap yourself: that fallback does not guarantee leakage-free
 splits. Each class needs training and test videos, and enough training clips to
-reserve validation. Keep test evaluation disabled until all model decisions are fixed.
+reserve validation. Do not tune model settings based on test results.
 The workflow refuses to overwrite existing feature caches, training directories,
 or test results.
 
-The notebook's 22 cells have been executed successfully in saved-results mode.
-Full training through the notebook has not been independently repeated for this
-experiment. Device, library, and decoder differences may affect reproducibility.
+The automatic training flow is smoke-tested with synthetic extracted features;
+this is not a new full training reproduction on real videos. Device, library,
+and decoder differences may affect reproducibility.
 
 ### Repository Contents
 
